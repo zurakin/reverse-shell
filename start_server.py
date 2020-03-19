@@ -1,7 +1,7 @@
-import Server
+import Server, sys
 
 def main():
-    server = Server.Server('192.168.1.11', 1554)
+    server = Server.Server('192.168.0.103', 1554)
     while True:
         cmd = input('-->')
         if cmd == 'list clients':
@@ -11,6 +11,8 @@ def main():
             print(f'Connected to client {str(i)}')
             server.communicate(i)
             print(f'connection closed with client {i}')
+        elif cmd == 'exit':
+            sys.exit()
 
 if __name__ == "__main__":
     main()

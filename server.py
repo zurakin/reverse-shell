@@ -38,27 +38,25 @@ class Server():
             conn.send(Message('quit').message)
             conn.close()
             print('connection closed')
-            self.clients.remove(connection_id)
+            self.clients.pop(connection_id)
             return False
         elif len(cmd.utf) > 0:
             conn.send(cmd.message)
-            client_response = self.receive()
-            print('the client responded:', client_response.utf, end = "")
+            client_response = self.receive(connection_id)
+            print('Client:\n'+ client_response, end = "")
 
     def communicate(self, connection_id):
         while True:
             a = self.send_msg(connection_id)
             if a == False:
                 break
-    def receive(self):
-        ins = self.s.recv(1024)
-        print('here is the ins ', ins)
-        msg = Message(ins ,2) #1024 is buffer size
-        size = msg.size
+    def receive(self, connection_id):
+        conn = self.clients[connection_id].conn
+        msg = Message(conn.recv(16) ,2) #1024 is buffer size
+        size = msg.get_size()
         data = msg.utf
         while len(data) < size:
-            print('receinving ..............')
-            data += Message(self.s.recv(1024),1).utf
+            data += Message(conn.recv(16),1).utf
         return data
 
     def list_clients(self):
