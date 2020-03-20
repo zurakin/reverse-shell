@@ -1,4 +1,4 @@
-import Server, sys
+import Server, sys, _thread
 
 def main():
     server = Server.Server('192.168.1.11', 1554)
@@ -7,7 +7,7 @@ def main():
         if cmd == 'list clients':
             server.list_clients()
         elif cmd == 'accept':
-            server.accept()
+            acc = _thread.start_new_thread(server.accept, ())
         elif cmd.split(' ')[0] == 'connect':
             i = int(cmd.split(' ')[1])
             print(f'Connected to client {str(i)}')

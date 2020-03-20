@@ -10,10 +10,14 @@ class Message():
         elif type == 1:
             self.bin = message
             self.utf = message.decode('utf-8', errors ='ignore')
-            self.message = (f'{len(self.utf):<10}'+self.utf).encode()
+            length = f'{len(self.bin):<10}'.encode()
+            self.message = (length + self.bin)
         elif type ==2:
             self.utf = message.decode('utf-8', errors ='ignore')[10:]
             self.bin = self.utf.encode()
             self.message = message
     def get_size(self):
-        return int(self.original.decode('utf-8', errors ='ignore')[:10])
+        try:
+            return int(self.original[:10])
+        except:
+            return len(self.original)
