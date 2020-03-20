@@ -1,11 +1,13 @@
 import Server, sys
 
 def main():
-    server = Server.Server('192.168.0.103', 1554)
+    server = Server.Server('192.168.1.11', 1554)
     while True:
         cmd = input('-->')
         if cmd == 'list clients':
             server.list_clients()
+        elif cmd == 'accept':
+            server.accept()
         elif cmd.split(' ')[0] == 'connect':
             i = int(cmd.split(' ')[1])
             print(f'Connected to client {str(i)}')

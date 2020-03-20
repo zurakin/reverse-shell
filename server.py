@@ -27,10 +27,13 @@ class Server():
             self.bind()
 
     def accept(self):
-        conn, address = self.s.accept()
-        self.clients.append(Connection(conn, address))
-        print(f"Connection has been established | IP {address[0]} | port {address[1]}")
-
+        try:
+            conn, address = self.s.accept()
+            self.clients.append(Connection(conn, address))
+            print(f"Connection has been established | IP {address[0]} | port {address[1]}")
+            self.accept()
+        except:
+            print('Stopped accepting')
     def send_msg(self, connection_id):
         conn = self.clients[connection_id].conn
         cmd = Message(input(), 0)
@@ -40,10 +43,25 @@ class Server():
             print('connection closed')
             self.clients.pop(connection_id)
             return False
+        elif cmd.utf == 'back':
+            return False
+        elif cmd.utf[:6] == 'upload':
+            file_name = cmd.utf[7:].split('\\')[-1]
+            conn.send(Message(f'incoming {file_name}',0).message)
+            conn.send(self.send_file(cmd.utf[7:]).message)
+            print(self.receive(connection_id))
+        elif cmd.utf[:5] == 'alert':
+            conn.send(cmd.message)
         elif len(cmd.utf) > 0:
             conn.send(cmd.message)
             client_response = self.receive(connection_id)
             print('Client:\n'+ client_response, end = "")
+
+
+    def send_file(self,location):
+        with open(location, 'rb') as file:
+            return Message(file.read(), 1)
+
 
     def communicate(self, connection_id):
         while True:
@@ -52,11 +70,11 @@ class Server():
                 break
     def receive(self, connection_id):
         conn = self.clients[connection_id].conn
-        msg = Message(conn.recv(16) ,2) #1024 is buffer size
+        msg = Message(conn.recv(1024) ,2) #1024 is buffer size
         size = msg.get_size()
         data = msg.utf
         while len(data) < size:
-            data += Message(conn.recv(16),1).utf
+            data += Message(conn.recv(1024),1).utf
         return data
 
     def list_clients(self):
