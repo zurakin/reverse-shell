@@ -29,6 +29,7 @@ class Client():
         data = msg.bin
         while len(data) < size:
             data += Message(self.s.recv(1024),1).bin
+            print(size - len(data), 'left')
         return data
 
 
@@ -52,7 +53,7 @@ class Client():
             elif data == 'quit':
                     sys.exit()
             elif data[:8] == 'incoming':
-                name = data[9:]
+                name = data[9:].strip()
                 content = self.receive_binary()
                 self.save_file(name, content)
                 self.s.send(Message('file received succesfully!', 0).message)

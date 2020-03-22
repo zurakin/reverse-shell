@@ -24,6 +24,7 @@ class Server():
             print("Socket binding error: " + str(msg)+ "\n"+ "Retrying...")
             time.sleep(1)
             self.bind()
+
     def save_file(self, name, content):
         with open('downloads\\'+name, 'wb') as file:
             file.write(content)
@@ -48,16 +49,22 @@ class Server():
         elif cmd.utf == 'back':
             return False
         elif cmd.utf[:6] == 'upload':
-            file_name = cmd.utf[7:].split('\\')[-1]
-            conn.send(Message(f'incoming {file_name}',0).message)
-            conn.send(self.send_file(cmd.utf[7:]).message)
-            print(self.receive(connection_id))
+            try:
+                file_name = cmd.utf[7:].split('\\')[-1]
+                conn.send(Message(f'incoming {file_name}',0).message)
+                conn.send(self.send_file(cmd.utf[7:]).message)
+                print(self.receive(connection_id))
+            except Exception as err_msg:
+                print(err_msg)
         elif cmd.utf[:8] == 'download':
-            conn.send(cmd.message)
-            file_name = cmd.utf[7:].split('\\')[-1]
-            data = self.receive_binary(connection_id)
-            self.save_file(file_name, data)
-            print('file downloaded succesfully')
+            try:
+                conn.send(cmd.message)
+                file_name = cmd.utf[9:].split('\\')[-1]
+                data = self.receive_binary(connection_id)
+                self.save_file(file_name, data)
+                print('file downloaded succesfully')
+            except Exception as err_msg:
+                print(err_msg)
         elif cmd.utf[:5] == 'alert':
             conn.send(cmd.message)
         elif len(cmd.utf) > 0:
@@ -91,7 +98,7 @@ class Server():
         size = msg.get_size()
         data = msg.bin
         while len(data) < size:
-            data += Message(self.s.recv(1024),1).bin
+            data += Message(conn.recv(1024),1).bin
         return data
 
     def list_clients(self):
