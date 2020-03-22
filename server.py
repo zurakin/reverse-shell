@@ -1,58 +1,106 @@
+import time
 import socket
-import sys
+from connection import Connection
+from message import Message
 
 
-# Create socket (allows two computers to connect)
-def socket_create():
-    try:
-        global host
-        global port
-        global s
-        host = ''
-        port = 9999
-        s = socket.socket()
-    except socket.error as msg:
-        print('Socket creation error: ' + str(msg))
+class Server():
+    def __init__(self, host, port):
+        try:
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.host = host
+            self.port = port
+            self.clients = []
+        except :
+            print('Socket creation failed')
 
+        self.bind()
 
-# Bind socket to port and wait for connection from client
-def socket_bind():
-    try:
-        global host
-        global port
-        global s
-        print("Binding socket to port: " + str(port))
-        s.bind((host, port))
-        s.listen(5)
-    except socket.error as msg:
-        print("Socket binding error: " + str(msg)+ "\n"+ "Retrying...")
-        socket.bind()
+    def bind(self):
+        try:
+            self.s.bind((self.host, self.port))
+            self.s.listen(5)
+        except socket.error as msg:
+            print("Socket binding error: " + str(msg)+ "\n"+ "Retrying...")
+            time.sleep(1)
+            self.bind()
 
-# Establish a connection with client ( socket must be listenting for them)
-def socket_accept():
-    conn, address = s.accept()
-    print("Connection has been established | IP {} | port {}".format(address[0], str(address[1])))
-    send_commands(conn)
-    conn.close()
+    def save_file(self, name, content):
+        with open('downloads\\'+name, 'wb') as file:
+            file.write(content)
 
-
-#Send commands
-def send_commands(conn):
-    while True:
-        cmd = input()
-        if cmd == 'quit':
-            conn.send('quit'.encode())
+    def accept(self):
+        try:
+            conn, address = self.s.accept()
+            self.clients.append(Connection(conn, address))
+            print(f"Connection has been established | IP {address[0]} | port {address[1]}")
+            self.accept()
+        except:
+            print('Stopped accepting')
+    def send_msg(self, connection_id):
+        conn = self.clients[connection_id].conn
+        cmd = Message(input(), 0)
+        if cmd.utf == 'quit':
+            conn.send(Message('quit').message)
             conn.close()
-            s.close()
-            sys.exit()
-        elif len(str.encode(cmd)) > 0:
-            conn.send(str.encode(cmd))
-            client_response = str(conn.recv(10000), "utf-8")
-            print(client_response, end = "")
+            print('connection closed')
+            self.clients.pop(connection_id)
+            return False
+        elif cmd.utf == 'back':
+            return False
+        elif cmd.utf[:6] == 'upload':
+            try:
+                file_name = cmd.utf[7:].split('\\')[-1]
+                conn.send(Message(f'incoming {file_name}',0).message)
+                conn.send(self.send_file(cmd.utf[7:]).message)
+                print(self.receive(connection_id))
+            except Exception as err_msg:
+                print(err_msg)
+        elif cmd.utf[:8] == 'download':
+            try:
+                conn.send(cmd.message)
+                file_name = cmd.utf[9:].split('\\')[-1]
+                data = self.receive_binary(connection_id)
+                self.save_file(file_name, data)
+                print('file downloaded succesfully')
+            except Exception as err_msg:
+                print(err_msg)
+        elif cmd.utf[:5] == 'alert':
+            conn.send(cmd.message)
+        elif len(cmd.utf) > 0:
+            conn.send(cmd.message)
+            client_response = self.receive(connection_id)
+            print('Client:\n'+ client_response, end = "")
 
-def main():
-    socket_create()
-    socket_bind()
-    socket_accept()
 
-main()
+    def send_file(self,location):
+        with open(location, 'rb') as file:
+            return Message(file.read(), 1)
+
+
+    def communicate(self, connection_id):
+        while True:
+            a = self.send_msg(connection_id)
+            if a == False:
+                break
+    def receive(self, connection_id):
+        conn = self.clients[connection_id].conn
+        msg = Message(conn.recv(1024) ,2) #1024 is buffer size
+        size = msg.get_size()
+        data = msg.utf
+        while len(data) < size:
+            data += Message(conn.recv(1024),1).utf
+        return data
+
+    def receive_binary(self, connection_id):
+        conn = self.clients[connection_id].conn
+        msg = Message(conn.recv(1024),2) #1024 is buffer size
+        size = msg.get_size()
+        data = msg.bin
+        while len(data) < size:
+            data += Message(conn.recv(1024),1).bin
+        return data
+
+    def list_clients(self):
+        for i, c in enumerate(self.clients):
+            print(f'{i} | IP: {c.address[0]} | Port : {c.address[1]}')
