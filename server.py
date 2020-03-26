@@ -2,6 +2,7 @@ import time
 import socket
 from connection import Connection
 from message import Message
+import pickle
 
 
 class Server():
@@ -76,6 +77,10 @@ class Server():
     def send_file(self,location):
         with open(location, 'rb') as file:
             return Message(file.read(), 1)
+
+    def send_object(self, object):
+        bin = pickle.dumps(object)
+        return Message(bin, 2)
 
 
     def communicate(self, connection_id):

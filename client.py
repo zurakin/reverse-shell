@@ -1,6 +1,6 @@
 import os, socket, subprocess, sys
 from message import Message
-
+import pickle
 
 class Client():
     def __init__(self, shost, sport):
@@ -32,6 +32,10 @@ class Client():
             print(size - len(data), 'left')
         return data
 
+    def receive_object(self):
+        binary_obj = self.receive_binary()
+        return pickle.loads(binary_obj)
+
 
     def save_file(self, name, content):
         with open(name, 'wb') as file:
@@ -40,6 +44,10 @@ class Client():
     def send_file(self,location):
         with open(location, 'rb') as file:
             return Message(file.read(), 1)
+
+    def send_object(self, object):
+        bin = pickle.dumps(object)
+        return Message(bin, 2)
 
     def communicate(self):
         while True:
