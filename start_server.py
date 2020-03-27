@@ -1,7 +1,7 @@
-import Server, sys, _thread
+import server_class, sys, _thread
 
 def main():
-    server = Server.Server('192.168.1.11', 1554)
+    server = server_class.Server('192.168.1.11', 1554)
     while True:
         cmd = input('-->')
         if cmd == 'list clients':
